@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>100 días de periodismo</title>
+<style>
+:root{--bg:#FBFAFD;--fg:#1E1530;--muted:#6B6280;--line:#E3DEEB;--acc:#8340BC;--err:#B3261E}
+@media (prefers-color-scheme:dark){:root{--bg:#17111F;--fg:#F1ECF7;--muted:#A79DB8;--line:#34294A;--acc:#9E70D2;--err:#F2786D}}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:16px/1.5 "Segoe UI",system-ui,sans-serif;display:grid;place-items:center;padding:0 16px}
+.caja{width:100%;max-width:380px;display:flex;flex-direction:column;gap:12px}
+.k{font:600 .75rem ui-monospace,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0}
+h1{font:400 2.4rem/1 Impact,"Arial Narrow",sans-serif;text-transform:uppercase;margin:0}
+input,button{font:inherit;padding:11px 12px;border-radius:6px}
+input{border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+button{border:0;background:var(--acc);color:#fff;font-weight:600;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.err{color:var(--err);min-height:1.5em;margin:0}.pie{color:var(--muted);font-size:.85rem;margin:0}
+</style></head><body>
+<form class="caja" id="f" autocomplete="off">
+  <p class="k">Acceso restringido</p>
+  <h1>100 días de periodismo</h1>
+  <p class="pie">Escriba la clave que le compartieron.</p>
+  <input id="c" type="password" placeholder="Clave" aria-label="Clave" autofocus>
+  <button type="submit">Entrar</button>
+  <p class="err" id="e" aria-live="polite"></p>
+  <p class="pie">El contenido viaja cifrado y solo se abre en este navegador.</p>
+</form>
+<script>
+const b64 = s => Uint8Array.from(atob(s), ch => ch.charCodeAt(0));
+document.getElementById('f').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  const e = document.getElementById('e'); e.textContent = 'Abriendo…';
+  try {
+    const s = await (await fetch('contenido.bin', { cache: 'no-store' })).json();
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(document.getElementById('c').value), 'PBKDF2', false, ['deriveKey']);
+    const llave = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: b64(s.sal), iterations: s.iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+    const gz = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(s.iv) }, llave, b64(s.datos));
+    const html = await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+    document.open(); document.write(html); document.close();
+  } catch (x) { e.textContent = 'La clave no es correcta.'; }
+});
+</script></body></html>
